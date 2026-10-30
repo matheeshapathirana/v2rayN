@@ -1,0 +1,163 @@
+From f0841ca5f238f4744d3029d4777566a2be9d149f Mon Sep 17 00:00:00 2001
+From: v2rayN custom <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 03:09:39 +0000
+Subject: [PATCH] TLS config: restore `allowInsecure` for clients
+
+---
+ infra/conf/transport_security.go              |  3 +-
+ transport/internet/tls/allow_insecure_test.go | 59 +++++++++++++++++++
+ transport/internet/tls/config.go              |  3 +
+ transport/internet/tls/config.pb.go           | 14 ++++-
+ transport/internet/tls/config.proto           |  3 +-
+ 5 files changed, 78 insertions(+), 4 deletions(-)
+ create mode 100644 transport/internet/tls/allow_insecure_test.go
+
+diff --git a/infra/conf/transport_security.go b/infra/conf/transport_security.go
+index 00e5387..d4f402a 100644
+--- a/infra/conf/transport_security.go
++++ b/infra/conf/transport_security.go
+@@ -360,7 +360,8 @@ func (c *TLSConfig) Build() (proto.Message, error) {
+ 	config.MasterKeyLog = c.MasterKeyLog
+ 
+ 	if c.AllowInsecure {
+-		return nil, errors.PrintRemovedFeatureError(`"allowInsecure"`, `"pinnedPeerCertSha256"(pcs) and "verifyPeerCertByName"(vcn)`)
++		errors.LogWarning(context.Background(), `"allowInsecure" is enabled, the server's certificate will not be verified; prefer "pinnedPeerCertSha256"(pcs) or "verifyPeerCertByName"(vcn)`)
++		config.AllowInsecure = true
+ 	}
+ 	if c.PinnedPeerCertSha256 != "" {
+ 		for v := range strings.SplitSeq(c.PinnedPeerCertSha256, ",") {
+diff --git a/transport/internet/tls/allow_insecure_test.go b/transport/internet/tls/allow_insecure_test.go
+new file mode 100644
+index 0000000..7e24347
+--- /dev/null
++++ b/transport/internet/tls/allow_insecure_test.go
+@@ -0,0 +1,59 @@
++package tls_test
++
++import (
++	gotls "crypto/tls"
++	"net"
++	"testing"
++
++	"github.com/xtls/xray-core/common"
++	"github.com/xtls/xray-core/common/protocol/tls/cert"
++	"github.com/xtls/xray-core/infra/conf"
++	. "github.com/xtls/xray-core/transport/internet/tls"
++)
++
++// handshakeSelfSigned dials a server presenting a self-signed certificate with clientConfig.
++func handshakeSelfSigned(t *testing.T, clientConfig *Config) error {
++	t.Helper()
++	selfSigned, _ := cert.MustGenerate(nil, cert.CommonName("self-signed.test"), cert.DNSNames("self-signed.test"))
++	serverConfig := &Config{Certificate: []*Certificate{ParseCertificate(selfSigned)}}
++
++	listener, err := gotls.Listen("tcp", "127.0.0.1:0", serverConfig.GetTLSConfig())
++	common.Must(err)
++	defer listener.Close()
++
++	go func() {
++		conn, err := listener.Accept()
++		if err != nil {
++			return
++		}
++		_ = conn.(*gotls.Conn).Handshake()
++		conn.Close()
++	}()
++
++	rawConn, err := net.Dial("tcp", listener.Addr().String())
++	common.Must(err)
++	client := gotls.Client(rawConn, clientConfig.GetTLSConfig())
++	defer client.Close()
++	return client.Handshake()
++}
++
++func TestAllowInsecureAcceptsSelfSigned(t *testing.T) {
++	if err := handshakeSelfSigned(t, &Config{ServerName: "self-signed.test", AllowInsecure: true}); err != nil {
++		t.Fatal("handshake with allowInsecure failed: ", err)
++	}
++}
++
++func TestSecureRejectsSelfSigned(t *testing.T) {
++	if err := handshakeSelfSigned(t, &Config{ServerName: "self-signed.test"}); err == nil {
++		t.Fatal("handshake without allowInsecure accepted a self-signed certificate")
++	}
++}
++
++func TestAllowInsecureJSON(t *testing.T) {
++	c := &conf.TLSConfig{AllowInsecure: true, ServerName: "self-signed.test"}
++	built, err := c.Build()
++	common.Must(err)
++	if !built.(*Config).AllowInsecure {
++		t.Fatal(`"allowInsecure": true was not carried into the TLS config`)
++	}
++}
+diff --git a/transport/internet/tls/config.go b/transport/internet/tls/config.go
+index 71bd6ce..047a349 100644
+--- a/transport/internet/tls/config.go
++++ b/transport/internet/tls/config.go
+@@ -393,6 +393,9 @@ func (c *Config) GetTLSConfig(opts ...Option) *tls.Config {
+ 		VerifyPeerCertificate:  randCarrier.verifyPeerCert,
+ 	}
+ 	randCarrier.Config = config
++	if c.AllowInsecure {
++		config.InsecureSkipVerify = true
++	}
+ 	if len(c.VerifyPeerCertByName) > 0 {
+ 		config.InsecureSkipVerify = true
+ 	} else {
+diff --git a/transport/internet/tls/config.pb.go b/transport/internet/tls/config.pb.go
+index a1c32db..c7a5d8a 100644
+--- a/transport/internet/tls/config.pb.go
++++ b/transport/internet/tls/config.pb.go
+@@ -178,6 +178,8 @@ func (x *Certificate) GetBuildChain() bool {
+ 
+ type Config struct {
+ 	state protoimpl.MessageState `protogen:"open.v1"`
++	// Whether or not to skip verification of the server's certificate.
++	AllowInsecure bool `protobuf:"varint,1,opt,name=allow_insecure,json=allowInsecure,proto3" json:"allow_insecure,omitempty"`
+ 	// List of certificates to be served on server.
+ 	Certificate []*Certificate `protobuf:"bytes,2,rep,name=certificate,proto3" json:"certificate,omitempty"`
+ 	// Override server name.
+@@ -241,6 +243,13 @@ func (*Config) Descriptor() ([]byte, []int) {
+ 	return file_transport_internet_tls_config_proto_rawDescGZIP(), []int{1}
+ }
+ 
++func (x *Config) GetAllowInsecure() bool {
++	if x != nil {
++		return x.AllowInsecure
++	}
++	return false
++}
++
+ func (x *Config) GetCertificate() []*Certificate {
+ 	if x != nil {
+ 		return x.Certificate
+@@ -385,8 +394,9 @@ const file_transport_internet_tls_config_proto_rawDesc = "" +
+ 	"\x05Usage\x12\x10\n" +
+ 	"\fENCIPHERMENT\x10\x00\x12\x14\n" +
+ 	"\x10AUTHORITY_VERIFY\x10\x01\x12\x13\n" +
+-	"\x0fAUTHORITY_ISSUE\x10\x02\"\xca\x06\n" +
+-	"\x06Config\x12J\n" +
++	"\x0fAUTHORITY_ISSUE\x10\x02\"\xf1\x06\n" +
++	"\x06Config\x12%\n" +
++	"\x0eallow_insecure\x18\x01 \x01(\bR\rallowInsecure\x12J\n" +
+ 	"\vcertificate\x18\x02 \x03(\v2(.xray.transport.internet.tls.CertificateR\vcertificate\x12\x1f\n" +
+ 	"\vserver_name\x18\x03 \x01(\tR\n" +
+ 	"serverName\x12#\n" +
+diff --git a/transport/internet/tls/config.proto b/transport/internet/tls/config.proto
+index b30418c..e0b987f 100644
+--- a/transport/internet/tls/config.proto
++++ b/transport/internet/tls/config.proto
+@@ -38,7 +38,8 @@ message Certificate {
+ }
+ 
+ message Config {
+-  // Number 1 was assigned and used by an legacy option.
++  // Whether or not to skip verification of the server's certificate.
++  bool allow_insecure = 1;
+ 
+   // List of certificates to be served on server.
+   repeated Certificate certificate = 2;
+-- 
+2.43.0
+

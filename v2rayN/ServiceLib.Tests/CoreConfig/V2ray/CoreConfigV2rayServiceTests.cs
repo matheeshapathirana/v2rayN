@@ -22,6 +22,29 @@ public class CoreConfigV2rayServiceTests
     }
 
     [Test]
+    [Arguments("", true)]
+    [Arguments("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", false)]
+    public async Task GenerateClientConfigContent_TlsAllowInsecure_ShouldEmitAllowInsecureUnlessPinned(string certSha,
+        bool expectAllowInsecure)
+    {
+        var config = CoreConfigTestFactory.CreateConfig(ECoreType.Xray);
+        CoreConfigTestFactory.BindAppManagerConfig(config);
+        var node = CoreConfigTestFactory.CreateVmessNode(ECoreType.Xray);
+        node.StreamSecurity = Global.StreamSecurity;
+        node.AllowInsecure = Global.StringTrue;
+        node.CertSha = certSha;
+        var context = CoreConfigTestFactory.CreateContext(config, node, ECoreType.Xray);
+
+        var result = new CoreConfigV2rayService(context).GenerateClientConfigContent();
+
+        await result.Success.Should().BeTrue();
+        var cfg = JsonUtils.Deserialize<V2rayConfig>(result.Data!.ToString())!;
+        var tlsSettings = cfg.outbounds.First(o => o.tag == Global.ProxyTag).streamSettings.tlsSettings!;
+        await (tlsSettings.allowInsecure == true).Should().BeEqualTo(expectAllowInsecure);
+        await (tlsSettings.pinnedPeerCertSha256 is not null).Should().BeEqualTo(!expectAllowInsecure);
+    }
+
+    [Test]
     public async Task GenerateClientConfigContent_HttpOutbound_ShouldEmitHeadersInSettings()
     {
         var config = CoreConfigTestFactory.CreateConfig(ECoreType.Xray);
