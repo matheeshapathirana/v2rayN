@@ -1,0 +1,174 @@
+name: build custom release (allowInsecure)
+
+# Builds v2rayN together with an Xray-core that has `allowInsecure` restored
+# (see xray-custom/), packages it with the usual cores and geo files, and
+# publishes everything as a GitHub release of this repository.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - claude/youthful-franklin-e5s4fs
+    paths-ignore:
+      - '**.md'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-custom-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xray:
+    name: xray ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { target: windows-64, goos: windows, goarch: amd64 }
+          - { target: windows-arm64, goos: windows, goarch: arm64 }
+          - { target: linux-64, goos: linux, goarch: amd64 }
+          - { target: linux-arm64, goos: linux, goarch: arm64 }
+          - { target: macos-64, goos: darwin, goarch: amd64 }
+          - { target: macos-arm64, goos: darwin, goarch: arm64 }
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Fetch and patch Xray-core
+      run: |
+        XRAY_VERSION="$(tr -d '[:space:]' < xray-custom/XRAY_VERSION)"
+        git clone --depth 1 --branch "$XRAY_VERSION" https://github.com/XTLS/Xray-core.git "$RUNNER_TEMP/xray-core-src"
+        git -C "$RUNNER_TEMP/xray-core-src" apply "$GITHUB_WORKSPACE"/xray-custom/patches/*.patch
+
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: ${{ runner.temp }}/xray-core-src/go.mod
+        cache: false
+
+    - name: Test patched TLS config
+      working-directory: ${{ runner.temp }}/xray-core-src
+      run: go test ./transport/internet/tls/ ./infra/conf/ -skip 'TestECH'
+
+    - name: Build Xray
+      run: bash xray-custom/build-xray.sh ${{ matrix.goos }} ${{ matrix.goarch }} out
+      env:
+        XRAY_SRC_DIR: ${{ runner.temp }}/xray-core-src
+
+    - name: Upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: xray-${{ matrix.target }}
+        path: out
+
+  app:
+    name: v2rayN ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - { target: windows-64, runner: windows-latest, rid: win-x64, project: ./v2rayN/v2rayN.csproj, ext: '-p:EnableWindowsTargeting=true' }
+          - { target: windows-arm64, runner: windows-latest, rid: win-arm64, project: ./v2rayN/v2rayN.csproj, ext: '-p:EnableWindowsTargeting=true' }
+          - { target: linux-64, runner: ubuntu-24.04, rid: linux-x64, project: ./v2rayN.Desktop/v2rayN.Desktop.csproj, ext: '' }
+          - { target: linux-arm64, runner: ubuntu-24.04, rid: linux-arm64, project: ./v2rayN.Desktop/v2rayN.Desktop.csproj, ext: '' }
+          - { target: macos-64, runner: macos-latest, rid: osx-x64, project: ./v2rayN.Desktop/v2rayN.Desktop.csproj, ext: '' }
+          - { target: macos-arm64, runner: macos-latest, rid: osx-arm64, project: ./v2rayN.Desktop/v2rayN.Desktop.csproj, ext: '' }
+    env:
+      Output: ${{ github.workspace }}/out
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: 'recursive'
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.1xx
+
+    - name: Test
+      if: matrix.target == 'linux-64'
+      working-directory: ./v2rayN
+      run: dotnet test --project ./ServiceLib.Tests/ServiceLib.Tests.csproj
+
+    - name: Build v2rayN
+      shell: bash
+      working-directory: ./v2rayN
+      run: |
+        dotnet publish ${{ matrix.project }} -c Release -r ${{ matrix.rid }} -p:SelfContained=true ${{ matrix.ext }} -o "$Output"
+        dotnet publish ./AmazTool/AmazTool.csproj -c Release -r ${{ matrix.rid }} -p:SelfContained=true -p:PublishTrimmed=true ${{ matrix.ext }} -o "$Output"
+        find "$Output" -type f -name '*.pdb' -delete
+
+    - name: Upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: app-${{ matrix.target }}
+        path: out
+
+  package:
+    name: package ${{ matrix.target }}
+    needs: [ xray, app ]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [ windows-64, windows-arm64, linux-64, linux-arm64, macos-64, macos-arm64 ]
+    env:
+      Dir: v2rayN-${{ matrix.target }}
+    steps:
+    - name: Get cores and geo files
+      run: |
+        wget -nv -O core-bin.zip "https://github.com/2dust/v2rayN-core-bin/raw/refs/heads/master/v2rayN-${{ matrix.target }}.zip"
+        unzip -q core-bin.zip
+        test -d "$Dir/bin/xray"
+
+    - uses: actions/download-artifact@v8
+      with:
+        name: app-${{ matrix.target }}
+        path: ${{ env.Dir }}
+
+    - uses: actions/download-artifact@v8
+      with:
+        name: xray-${{ matrix.target }}
+        path: ${{ env.Dir }}/bin/xray
+
+    - name: Package zip archive
+      run: |
+        # artifacts do not keep the executable bit
+        chmod +x "$Dir"/v2rayN* "$Dir"/AmazTool* "$Dir"/bin/xray/xray* 2>/dev/null || true
+        find "$Dir/bin" -type f \( -name 'sing-box' -o -name 'mihomo*' \) -exec chmod +x {} +
+        "$Dir"/bin/xray/xray version 2>/dev/null | head -1 || true
+        zip -q -r -6 "v2rayN-custom-${{ matrix.target }}.zip" "$Dir"
+
+    - name: Upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-${{ matrix.target }}
+        path: v2rayN-custom-*.zip
+        if-no-files-found: error
+
+  release:
+    name: publish release
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: release-*
+        merge-multiple: true
+        path: dist
+
+    - name: Create release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        APP_VERSION="$(grep -oP '(?<=<Version>)[^<]+' v2rayN/Directory.Build.props)"
+        XRAY_VERSION="$(tr -d '[:space:]' < xray-custom/XRAY_VERSION)"
+        TAG="v${APP_VERSION}-custom.${GITHUB_RUN_NUMBER}"
+        cd dist && sha256sum *.zip > SHA256SUMS.txt && cd ..
+        gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "v2rayN ${APP_VERSION} custom (Xray ${XRAY_VERSION} + allowInsecure)" --notes "v2rayN ${APP_VERSION} bundled with Xray-core ${XRAY_VERSION} patched to accept \`allowInsecure\` again. Download the zip for your system, extract it and run v2rayN. Built from ${GITHUB_SHA}."

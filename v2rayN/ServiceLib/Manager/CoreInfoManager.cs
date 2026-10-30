@@ -56,14 +56,10 @@ public sealed class CoreInfoManager
 
         if (RuntimeInformation.ProcessArchitecture != Architecture.X86)
         {
-            if (IsCheckUpdateSupported(ECoreType.v2rayN))
-            {
-                lst.Add(ECoreType.v2rayN);
-            }
-
+            // This build ships its own v2rayN and a patched Xray-core (allowInsecure restored),
+            // so neither is offered for update: the official downloads would replace them.
             if (!(Utils.IsWindows() && Environment.OSVersion.Version.Major < 10))
             {
-                lst.Add(ECoreType.Xray);
                 lst.Add(ECoreType.mihomo);
                 lst.Add(ECoreType.sing_box);
             }
@@ -76,8 +72,8 @@ public sealed class CoreInfoManager
     {
         return type switch
         {
-            ECoreType.v2rayN => !Utils.IsPackagedInstall(),
-            ECoreType.Xray => true,
+            ECoreType.v2rayN => false,
+            ECoreType.Xray => false,
             ECoreType.mihomo => true,
             ECoreType.sing_box => true,
             _ => false,

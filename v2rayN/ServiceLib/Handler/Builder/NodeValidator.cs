@@ -139,10 +139,6 @@ public class NodeValidator
                     && item.GetAllowInsecure()
                     && !isCertProvided))
             {
-                if (coreType == ECoreType.Xray)
-                {
-                    v.Warning(ResUI.MsgAllowInsecureDeprecated);
-                }
                 v.Warning(ResUI.MsgInsecureConfiguration);
             }
         }

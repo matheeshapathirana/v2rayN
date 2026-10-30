@@ -362,6 +362,11 @@ public partial class CoreConfigV2rayService
                 {
                     tlsSettings.pinnedPeerCertSha256 = _node.CertSha;
                 }
+                else if (_node.GetAllowInsecure())
+                {
+                    // Needs the bundled Xray-core build, which restores allowInsecure
+                    tlsSettings.allowInsecure = true;
+                }
                 streamSettings.tlsSettings = tlsSettings;
             }
 
