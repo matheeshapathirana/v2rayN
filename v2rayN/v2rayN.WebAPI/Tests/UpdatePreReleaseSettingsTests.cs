@@ -68,7 +68,8 @@ public class UpdatePreReleaseSettingsTests
         await fixture.Runtime.GetUpdatePreRelease("Xray").Should().BeTrue();
         var settings = fixture.Runtime.GetCoreUpdateSettings();
         await settings.PreRelease.Should().BeFalse();
-        await settings.CheckPreReleaseCoreTypes.SequenceEqual(["Xray"]).Should().BeTrue();
+        // The bundled Xray-core is a custom build and is not an update target, so it is not listed.
+        await settings.CheckPreReleaseCoreTypes.Count.Should().BeEqualTo(0);
 
         fixture.Config.CheckUpdateItem.CheckPreReleaseCoreTypes = [WebTarget];
         await fixture.Runtime.GetUpdatePreRelease(WebTarget).Should().BeTrue();
@@ -84,7 +85,7 @@ public class UpdatePreReleaseSettingsTests
         fixture.Config.CheckUpdateItem.SelectedCoreTypes = ["v2rayN", "Xray", WebTarget];
         fixture.Config.CheckUpdateItem.CheckPreReleaseCoreTypes = ["v2rayN", "OtherPlatform", "Xray", WebTarget];
         var input = new CoreUpdateSettingsInput(
-            ["Xray"], PreRelease: !enableWeb, UseProxy: false,
+            ["sing_box"], PreRelease: !enableWeb, UseProxy: false,
             CheckPreReleaseCoreTypes: enableWeb ? [WebTarget, WebTarget] : []);
 
         var result = await fixture.Runtime.SaveCoreUpdateSettingsAsync(input);
@@ -92,7 +93,8 @@ public class UpdatePreReleaseSettingsTests
         await result.Success.Should().BeTrue();
         var saved = fixture.Config.CheckUpdateItem;
         await saved.CheckPreReleaseCoreTypes.Contains(WebTarget).Should().BeEqualTo(enableWeb);
-        await saved.CheckPreReleaseCoreTypes.Contains("Xray").Should().BeFalse();
+        // Xray (custom build, not an update target) is hidden like v2rayN, so its preference is kept.
+        await saved.CheckPreReleaseCoreTypes.Contains("Xray").Should().BeTrue();
         await saved.CheckPreReleaseCoreTypes.Contains("v2rayN").Should().BeTrue();
         await saved.CheckPreReleaseCoreTypes.Contains("OtherPlatform").Should().BeTrue();
         await saved.CheckPreReleaseCoreTypes.Count(name => name == WebTarget).Should().BeEqualTo(enableWeb ? 1 : 0);
@@ -128,7 +130,8 @@ public class UpdatePreReleaseSettingsTests
 
         await result.Success.Should().BeTrue();
         await fixture.Runtime.GetUpdatePreRelease(WebTarget).Should().BeEqualTo(preRelease);
-        await fixture.Runtime.GetUpdatePreRelease("Xray").Should().BeEqualTo(preRelease);
+        // Xray is not an update target in this build, so its hidden preference is left as it was.
+        await fixture.Runtime.GetUpdatePreRelease("Xray").Should().BeTrue();
         await fixture.Runtime.GetUpdatePreRelease("mihomo").Should().BeFalse();
         await fixture.Runtime.GetUpdatePreRelease("sing_box").Should().BeFalse();
         await fixture.Config.CheckUpdateItem.CheckPreReleaseCoreTypes.Contains("v2rayN").Should().BeTrue();
