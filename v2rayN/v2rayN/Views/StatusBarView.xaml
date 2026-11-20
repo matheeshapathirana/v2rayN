@@ -63,6 +63,17 @@
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
                         AutomationProperties.Name="{x:Static resx:ResUI.TbEnableTunAs}" />
+                    <Button
+                        x:Name="btnHotspot"
+                        Width="24"
+                        Height="24"
+                        Margin="{StaticResource MarginLeftRight4}"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="{x:Static resx:ResUI.menuHotspot}"
+                        Style="{StaticResource MaterialDesignFloatingActionMiniLightButton}"
+                        ToolTip="{x:Static resx:ResUI.menuHotspot}">
+                        <materialDesign:PackIcon VerticalAlignment="Center" Kind="Wifi" />
+                    </Button>
                 </StackPanel>
 
                 <StackPanel

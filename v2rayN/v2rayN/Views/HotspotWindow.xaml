@@ -1,0 +1,92 @@
+<base:WindowBase
+    x:Class="v2rayN.Views.HotspotWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:base="clr-namespace:v2rayN.Base"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
+    xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
+    Title="{x:Static resx:ResUI.menuHotspot}"
+    Width="420"
+    SizeToContent="Height"
+    x:TypeArguments="vms:HotspotViewModel"
+    ResizeMode="NoResize"
+    ShowInTaskbar="False"
+    Style="{StaticResource WindowGlobal}"
+    WindowStartupLocation="CenterScreen"
+    mc:Ignorable="d">
+    <StackPanel Margin="{StaticResource Margin8}">
+        <TextBox
+            x:Name="txtSsid"
+            Margin="{StaticResource Margin4}"
+            materialDesign:HintAssist.Hint="{x:Static resx:ResUI.HotspotSsid}"
+            AutomationProperties.Name="{x:Static resx:ResUI.HotspotSsid}"
+            Style="{StaticResource MyOutlinedTextBox}" />
+
+        <DockPanel Margin="{StaticResource Margin4}">
+            <ToggleButton
+                x:Name="togShowPassword"
+                Margin="{StaticResource MarginLeft8}"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="{x:Static resx:ResUI.HotspotPassword}"
+                DockPanel.Dock="Right"
+                Style="{StaticResource MaterialDesignFlatToggleButton}">
+                <materialDesign:PackIcon Kind="Eye" />
+            </ToggleButton>
+            <Grid>
+                <PasswordBox
+                    x:Name="txtPasswordHidden"
+                    materialDesign:HintAssist.Hint="{x:Static resx:ResUI.HotspotPassword}"
+                    AutomationProperties.Name="{x:Static resx:ResUI.HotspotPassword}"
+                    Style="{StaticResource MaterialDesignOutlinedPasswordBox}" />
+                <TextBox
+                    x:Name="txtPassword"
+                    materialDesign:HintAssist.Hint="{x:Static resx:ResUI.HotspotPassword}"
+                    AutomationProperties.Name="{x:Static resx:ResUI.HotspotPassword}"
+                    Style="{StaticResource MyOutlinedTextBox}"
+                    Visibility="Collapsed" />
+            </Grid>
+        </DockPanel>
+
+        <StackPanel
+            Margin="{StaticResource Margin8}"
+            HorizontalAlignment="Center"
+            Orientation="Horizontal">
+            <Button
+                x:Name="btnStart"
+                MinWidth="140"
+                Margin="{StaticResource MarginLeftRight4}"
+                Content="{x:Static resx:ResUI.HotspotStart}"
+                IsDefault="True"
+                Style="{StaticResource DefButton}" />
+            <Button
+                x:Name="btnStop"
+                MinWidth="140"
+                Margin="{StaticResource MarginLeftRight4}"
+                Content="{x:Static resx:ResUI.HotspotStop}"
+                Style="{StaticResource DefButton}" />
+        </StackPanel>
+
+        <TextBlock
+            x:Name="txtStatus"
+            Margin="{StaticResource Margin4}"
+            HorizontalAlignment="Center"
+            Style="{StaticResource ToolbarTextBlock}"
+            TextWrapping="Wrap" />
+        <TextBlock
+            x:Name="txtClients"
+            Margin="{StaticResource Margin4}"
+            HorizontalAlignment="Center"
+            Style="{StaticResource ToolbarTextBlock}" />
+
+        <Image
+            x:Name="imgQrcode"
+            Width="200"
+            Height="200"
+            Margin="{StaticResource Margin8}"
+            AutomationProperties.Name="QR"
+            RenderOptions.BitmapScalingMode="NearestNeighbor" />
+    </StackPanel>
+</base:WindowBase>

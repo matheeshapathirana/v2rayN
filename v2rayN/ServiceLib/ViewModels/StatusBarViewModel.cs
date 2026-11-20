@@ -101,6 +101,11 @@ public partial class StatusBarViewModel : MyReactiveObject
     [Reactive]
     public partial bool BlIsNonWindows { get; set; }
 
+    [Reactive]
+    public partial bool BlHotspotVisible { get; set; }
+
+    public ReactiveCommand<RxVoid, RxVoid> HotspotCmd { get; }
+
     #endregion UI
 
     public StatusBarViewModel()
@@ -111,6 +116,11 @@ public partial class StatusBarViewModel : MyReactiveObject
         RunningServerToolTipText = GetRunningServerToolTipText("-");
         BlSystemProxyPacVisible = Utils.IsWindows();
         BlIsNonWindows = Utils.IsNonWindows();
+        BlHotspotVisible = HotspotCoordinator.Instance.IsAvailable;
+        HotspotCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            await AppManager.Instance.WindowDialog.ShowDialogAsync(new HotspotViewModel());
+        });
 
         if (_config.TunModeItem.EnableTun && AllowEnableTun())
         {

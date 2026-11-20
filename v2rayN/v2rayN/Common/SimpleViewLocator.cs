@@ -20,6 +20,7 @@ public class SimpleViewLocator : IViewLocator
         Register<DNSSettingViewModel, DNSSettingWindow>();
         Register<FullConfigTemplateViewModel, FullConfigTemplateWindow>();
         Register<GlobalHotkeySettingViewModel, GlobalHotkeySettingWindow>();
+        Register<HotspotViewModel, HotspotWindow>();
         Register<MainWindowViewModel, MainWindow>();
         Register<MsgViewModel, MsgView>();
         Register<OptionSettingViewModel, OptionSettingWindow>();

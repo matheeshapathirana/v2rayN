@@ -1926,4 +1926,31 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="HotspotUnavailable" xml:space="preserve">
     <value>Hotspot is only available in the Windows app</value>
   </data>
+  <data name="menuHotspot" xml:space="preserve">
+    <value>Hotspot</value>
+  </data>
+  <data name="HotspotSsid" xml:space="preserve">
+    <value>Network name (SSID)</value>
+  </data>
+  <data name="HotspotPassword" xml:space="preserve">
+    <value>Password (at least 8 characters)</value>
+  </data>
+  <data name="HotspotStart" xml:space="preserve">
+    <value>Start hotspot</value>
+  </data>
+  <data name="HotspotStop" xml:space="preserve">
+    <value>Stop hotspot</value>
+  </data>
+  <data name="HotspotStatusOn" xml:space="preserve">
+    <value>Hotspot is on — sharing the VPN</value>
+  </data>
+  <data name="HotspotStatusOff" xml:space="preserve">
+    <value>Hotspot is off</value>
+  </data>
+  <data name="HotspotStatusStarting" xml:space="preserve">
+    <value>Starting…</value>
+  </data>
+  <data name="HotspotClients" xml:space="preserve">
+    <value>Connected devices: {0}</value>
+  </data>
 </root>

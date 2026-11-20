@@ -5480,5 +5480,86 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("HotspotUnavailable", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Hotspot
+        /// </summary>
+        public static string menuHotspot {
+            get {
+                return ResourceManager.GetString("menuHotspot", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Network name (SSID)
+        /// </summary>
+        public static string HotspotSsid {
+            get {
+                return ResourceManager.GetString("HotspotSsid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Password (at least 8 characters)
+        /// </summary>
+        public static string HotspotPassword {
+            get {
+                return ResourceManager.GetString("HotspotPassword", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Start hotspot
+        /// </summary>
+        public static string HotspotStart {
+            get {
+                return ResourceManager.GetString("HotspotStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Stop hotspot
+        /// </summary>
+        public static string HotspotStop {
+            get {
+                return ResourceManager.GetString("HotspotStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot is on — sharing the VPN
+        /// </summary>
+        public static string HotspotStatusOn {
+            get {
+                return ResourceManager.GetString("HotspotStatusOn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot is off
+        /// </summary>
+        public static string HotspotStatusOff {
+            get {
+                return ResourceManager.GetString("HotspotStatusOff", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Starting…
+        /// </summary>
+        public static string HotspotStatusStarting {
+            get {
+                return ResourceManager.GetString("HotspotStatusStarting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Connected devices: {0}
+        /// </summary>
+        public static string HotspotClients {
+            get {
+                return ResourceManager.GetString("HotspotClients", resourceCulture);
+            }
+        }
     }
 }
