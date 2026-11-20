@@ -13,7 +13,9 @@ namespace v2rayN.Manager;
 public sealed class HotspotController : IHotspotController
 {
     private static readonly string[] TunAdapterNames = ["singbox_tun", "xray_tun"];
-    private static readonly TimeSpan StartRecheckDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan SettleTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan SettlePoll = TimeSpan.FromMilliseconds(500);
     private const string _tag = "HotspotController";
 
     private NetworkOperatorTetheringManager? _manager;
@@ -24,12 +26,7 @@ public sealed class HotspotController : IHotspotController
         {
             try
             {
-                return (_manager?.TetheringOperationalState) switch
-                {
-                    TetheringOperationalState.On => EHotspotState.On,
-                    TetheringOperationalState.InTransition => EHotspotState.Starting,
-                    _ => EHotspotState.Off,
-                };
+                return Map(GetManager()?.TetheringOperationalState);
             }
             catch (Exception ex)
             {
@@ -45,7 +42,7 @@ public sealed class HotspotController : IHotspotController
         {
             try
             {
-                return State == EHotspotState.On ? (int)(_manager?.ClientCount ?? 0) : 0;
+                return State == EHotspotState.On ? (int)(GetManager()?.ClientCount ?? 0) : 0;
             }
             catch
             {
@@ -56,25 +53,7 @@ public sealed class HotspotController : IHotspotController
 
     public Task<bool> IsInternetOnTunAsync()
     {
-        return Task.Run(() =>
-        {
-            try
-            {
-                var adapterId = NetworkInformation.GetInternetConnectionProfile()?.NetworkAdapter?.NetworkAdapterId;
-                if (adapterId is null)
-                {
-                    return false;
-                }
-                return NetworkInterface.GetAllNetworkInterfaces()
-                    .Where(n => TunAdapterNames.Contains(n.Name, StringComparer.OrdinalIgnoreCase))
-                    .Any(n => Guid.TryParse(n.Id, out var id) && id == adapterId.Value);
-            }
-            catch (Exception ex)
-            {
-                Logging.SaveLog(_tag, ex);
-                return false;
-            }
-        });
+        return Task.Run(() => IsTunProfile(NetworkInformation.GetInternetConnectionProfile()));
     }
 
     public async Task<string?> StartAsync(string ssid, string password)
@@ -82,8 +61,10 @@ public sealed class HotspotController : IHotspotController
         NetworkOperatorTetheringManager? manager = null;
         try
         {
+            // Re-check here: the profile may have changed since the caller checked it,
+            // and a hotspot created from the physical profile would bypass the VPN.
             var profile = NetworkInformation.GetInternetConnectionProfile();
-            if (profile == null)
+            if (!IsTunProfile(profile))
             {
                 return ResUI.HotspotNotOnTun;
             }
@@ -92,9 +73,10 @@ public sealed class HotspotController : IHotspotController
             _manager = manager;
 
             // Stop first so a changed SSID/password takes effect.
-            if (manager.TetheringOperationalState == TetheringOperationalState.On)
+            if (manager.TetheringOperationalState != TetheringOperationalState.Off)
             {
-                await manager.StopTetheringAsync();
+                await manager.StopTetheringAsync().AsTask().WaitAsync(CallTimeout);
+                await WaitToSettleAsync(manager);
             }
 
             var apConfig = new NetworkOperatorTetheringAccessPointConfiguration
@@ -102,24 +84,26 @@ public sealed class HotspotController : IHotspotController
                 Ssid = ssid,
                 Passphrase = password,
             };
-            await manager.ConfigureAccessPointAsync(apConfig);
+            await manager.ConfigureAccessPointAsync(apConfig).AsTask().WaitAsync(CallTimeout);
 
-            var result = await manager.StartTetheringAsync();
+            var result = await manager.StartTetheringAsync().AsTask().WaitAsync(CallTimeout);
             if (result.Status == TetheringOperationStatus.Success)
             {
                 return null;
             }
 
             Logging.SaveLog($"{_tag} StartTethering: {result.Status} {result.AdditionalErrorMessage}");
-            return await RecheckStartedAsync(manager)
-                ? null
-                : result.AdditionalErrorMessage.IsNullOrEmpty() ? result.Status.ToString() : result.AdditionalErrorMessage;
+            if (await WaitToSettleAsync(manager) == TetheringOperationalState.On)
+            {
+                return null;
+            }
+            return result.AdditionalErrorMessage.IsNullOrEmpty() ? result.Status.ToString() : result.AdditionalErrorMessage;
         }
         catch (Exception ex)
         {
             // Seen in testing: StartTetheringAsync throws although the hotspot does come up.
             Logging.SaveLog($"{_tag} StartTethering exception: {ex}");
-            if (manager != null && await RecheckStartedAsync(manager))
+            if (manager != null && await WaitToSettleAsync(manager) == TetheringOperationalState.On)
             {
                 return null;
             }
@@ -127,31 +111,97 @@ public sealed class HotspotController : IHotspotController
         }
     }
 
-    public async Task StopAsync()
+    public async Task<bool> StopAsync()
     {
+        var manager = GetManager();
+        if (manager == null)
+        {
+            return true;
+        }
         try
         {
-            if (_manager?.TetheringOperationalState is TetheringOperationalState.On or TetheringOperationalState.InTransition)
+            if (manager.TetheringOperationalState != TetheringOperationalState.Off)
             {
-                await _manager.StopTetheringAsync();
+                var result = await manager.StopTetheringAsync().AsTask().WaitAsync(CallTimeout);
+                if (result.Status != TetheringOperationStatus.Success)
+                {
+                    Logging.SaveLog($"{_tag} StopTethering: {result.Status} {result.AdditionalErrorMessage}");
+                }
             }
         }
         catch (Exception ex)
         {
-            Logging.SaveLog(_tag, ex);
+            Logging.SaveLog($"{_tag} StopTethering exception: {ex}");
         }
+        return await WaitToSettleAsync(manager) == TetheringOperationalState.Off;
     }
 
-    private static async Task<bool> RecheckStartedAsync(NetworkOperatorTetheringManager manager)
+    /// <summary>
+    /// The tethering state is system-wide, so any manager reports it. Create one on demand so a
+    /// hotspot this process did not start (e.g. left by a crashed session) is still visible.
+    /// </summary>
+    private NetworkOperatorTetheringManager? GetManager()
     {
-        await Task.Delay(StartRecheckDelay);
+        if (_manager != null)
+        {
+            return _manager;
+        }
+        var profile = NetworkInformation.GetInternetConnectionProfile();
+        if (profile == null)
+        {
+            return null;
+        }
+        _manager = NetworkOperatorTetheringManager.CreateFromConnectionProfile(profile);
+        return _manager;
+    }
+
+    private static bool IsTunProfile(ConnectionProfile? profile)
+    {
         try
         {
-            return manager.TetheringOperationalState == TetheringOperationalState.On;
+            var adapterId = profile?.NetworkAdapter?.NetworkAdapterId;
+            if (adapterId is null)
+            {
+                return false;
+            }
+            return NetworkInterface.GetAllNetworkInterfaces()
+                .Where(n => TunAdapterNames.Contains(n.Name, StringComparer.OrdinalIgnoreCase))
+                .Any(n => Guid.TryParse(n.Id, out var id) && id == adapterId.Value);
         }
-        catch
+        catch (Exception ex)
         {
+            Logging.SaveLog(_tag, ex);
             return false;
         }
     }
+
+    /// <summary>Polls until the state leaves InTransition (or the settle timeout passes) and returns it.</summary>
+    private static async Task<TetheringOperationalState> WaitToSettleAsync(NetworkOperatorTetheringManager manager)
+    {
+        var deadline = DateTime.UtcNow + SettleTimeout;
+        while (true)
+        {
+            TetheringOperationalState state;
+            try
+            {
+                state = manager.TetheringOperationalState;
+            }
+            catch
+            {
+                state = TetheringOperationalState.Unknown;
+            }
+            if (state is TetheringOperationalState.On or TetheringOperationalState.Off || DateTime.UtcNow >= deadline)
+            {
+                return state;
+            }
+            await Task.Delay(SettlePoll);
+        }
+    }
+
+    private static EHotspotState Map(TetheringOperationalState? state) => state switch
+    {
+        TetheringOperationalState.On => EHotspotState.On,
+        TetheringOperationalState.InTransition => EHotspotState.Starting,
+        _ => EHotspotState.Off,
+    };
 }

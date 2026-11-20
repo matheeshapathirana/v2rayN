@@ -5561,5 +5561,23 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("HotspotClients", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Could not stop the hotspot; turn it off in Windows Settings (Mobile hotspot)
+        /// </summary>
+        public static string HotspotStopFailed {
+            get {
+                return ResourceManager.GetString("HotspotStopFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Stopped a hotspot left running by a previous session
+        /// </summary>
+        public static string HotspotRecovered {
+            get {
+                return ResourceManager.GetString("HotspotRecovered", resourceCulture);
+            }
+        }
     }
 }

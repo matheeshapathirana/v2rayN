@@ -15,5 +15,6 @@ public interface IHotspotController
     /// <summary>Starts the hotspot. Returns null on success, otherwise an error message.</summary>
     Task<string?> StartAsync(string ssid, string password);
 
-    Task StopAsync();
+    /// <summary>Stops the hotspot. Returns true once it is confirmed off.</summary>
+    Task<bool> StopAsync();
 }

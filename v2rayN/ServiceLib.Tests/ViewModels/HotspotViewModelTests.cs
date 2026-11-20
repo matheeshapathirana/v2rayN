@@ -19,8 +19,8 @@ public class HotspotViewModelTests
         public Harness()
         {
             var coordinator = new HotspotCoordinator(
-                () => Fake, () => Config, () => true, _ => { },
-                delay: _ => Task.CompletedTask, enableGuardLoop: false);
+                () => Fake, () => Config, () => true, _ => { }, _ => Task.CompletedTask,
+                new HotspotCoordinatorOptions { Delay = _ => Task.CompletedTask, GuardInterval = null });
             Vm = new HotspotViewModel(coordinator, Config, _ =>
             {
                 SaveCalls++;

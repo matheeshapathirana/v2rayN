@@ -1953,4 +1953,10 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="HotspotClients" xml:space="preserve">
     <value>Connected devices: {0}</value>
   </data>
+  <data name="HotspotStopFailed" xml:space="preserve">
+    <value>Could not stop the hotspot; turn it off in Windows Settings (Mobile hotspot)</value>
+  </data>
+  <data name="HotspotRecovered" xml:space="preserve">
+    <value>Stopped a hotspot left running by a previous session</value>
+  </data>
 </root>

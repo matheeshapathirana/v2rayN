@@ -1,12 +1,18 @@
+using ServiceLib.Tests.CoreConfig;
+
 namespace ServiceLib.Tests.Manager;
 
 public class CoreManagerTests
 {
     [Test]
-    [NotInParallel("AppManagerHotspotController")]
-    public async Task CoreStop_WhenHotspotOn_StopsHotspot()
+    [NotInParallel] // swaps AppManager's global config and controller; must run alone
+    public async Task CoreStop_WhenOwnedHotspotOn_StopsHotspot()
     {
         var fake = new FakeHotspotController { State = EHotspotState.On };
+        var previousConfig = AppManager.Instance.Config;
+        var config = CoreConfigTestFactory.CreateConfig();
+        config.HotspotItem = new HotspotItem { Ssid = "Home", Password = "pass1234", Active = true };
+        CoreConfigTestFactory.BindAppManagerConfig(config);
         AppManager.Instance.HotspotController = fake;
         try
         {
@@ -18,6 +24,7 @@ public class CoreManagerTests
         finally
         {
             AppManager.Instance.HotspotController = null;
+            CoreConfigTestFactory.BindAppManagerConfig(previousConfig);
         }
     }
 

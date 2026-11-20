@@ -1,8 +1,22 @@
 namespace ServiceLib.Manager;
 
+public sealed record HotspotCoordinatorOptions
+{
+    /// <summary>Delay used while waiting for singbox_tun to become the internet profile.</summary>
+    public Func<TimeSpan, Task> Delay { get; init; } = t => Task.Delay(t);
+
+    /// <summary>How often the guard checks a running hotspot; null disables the guard loop.</summary>
+    public TimeSpan? GuardInterval { get; init; } = TimeSpan.FromSeconds(3);
+
+    /// <summary>Longest a core stop waits for an in-flight hotspot operation before going ahead.</summary>
+    public TimeSpan GateTimeout { get; init; } = TimeSpan.FromSeconds(30);
+}
+
 /// <summary>
 /// Keeps the Wi-Fi hotspot tied to the TUN VPN: it may only run while TUN is up,
 /// is paused around core restarts, and is shut off whenever the VPN goes away.
+/// Only a hotspot v2rayN started ("owned", persisted in HotspotItem.Active) is ever touched
+/// automatically; a hotspot the user turned on in Windows Settings is left alone.
 /// </summary>
 public sealed class HotspotCoordinator
 {
@@ -10,11 +24,11 @@ public sealed class HotspotCoordinator
         () => AppManager.Instance.HotspotController,
         () => AppManager.Instance.Config,
         () => CoreManager.Instance.IsCoreRunning,
-        NoticeManager.Instance.SendMessageAndEnqueue));
+        NoticeManager.Instance.SendMessageAndEnqueue,
+        async c => await ConfigHandler.SaveConfig(c)));
 
     public static HotspotCoordinator Instance => _instance.Value;
 
-    private static readonly TimeSpan GuardInterval = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan TunWaitStep = TimeSpan.FromSeconds(1);
     private const int TunWaitAttempts = 10;
     private const string _tag = "HotspotCoordinator";
@@ -23,27 +37,32 @@ public sealed class HotspotCoordinator
     private readonly Func<Config> _config;
     private readonly Func<bool> _isCoreRunning;
     private readonly Action<string> _notify;
-    private readonly Func<TimeSpan, Task> _delay;
-    private readonly bool _enableGuardLoop;
+    private readonly Func<Config, Task> _saveConfig;
+    private readonly HotspotCoordinatorOptions _options;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    private bool _startedThisSession;
     private bool _resumeAfterCoreStart;
-    private CancellationTokenSource? _guardCts;
 
     public HotspotCoordinator(
         Func<IHotspotController?> controller,
         Func<Config> config,
         Func<bool> isCoreRunning,
         Action<string> notify,
-        Func<TimeSpan, Task>? delay = null,
-        bool enableGuardLoop = true)
+        Func<Config, Task>? saveConfig = null,
+        HotspotCoordinatorOptions? options = null)
     {
         _controller = controller;
         _config = config;
         _isCoreRunning = isCoreRunning;
         _notify = notify;
-        _delay = delay ?? (t => Task.Delay(t));
-        _enableGuardLoop = enableGuardLoop;
+        _saveConfig = saveConfig ?? (_ => Task.CompletedTask);
+        _options = options ?? new HotspotCoordinatorOptions();
+
+        if (_options.GuardInterval is { } interval)
+        {
+            _ = RunGuardLoopAsync(interval);
+        }
     }
 
     public bool IsAvailable => _controller() != null;
@@ -51,6 +70,8 @@ public sealed class HotspotCoordinator
     public EHotspotState State => _controller()?.State ?? EHotspotState.Unavailable;
 
     public int ClientCount => _controller()?.ClientCount ?? 0;
+
+    private bool Owned => _config()?.HotspotItem?.Active == true;
 
     /// <summary>User-initiated start. Returns null on success, otherwise an error message.</summary>
     public async Task<string?> StartAsync()
@@ -81,16 +102,60 @@ public sealed class HotspotCoordinator
         }
     }
 
-    /// <summary>Called before the core stops: pause the hotspot so Windows cannot rebind it to the physical link.</summary>
-    public async Task BeforeCoreStopAsync()
+    /// <summary>
+    /// At app startup: stop a hotspot that a previous (crashed) session left running.
+    /// Its TUN adapter is gone, so it can only be sharing the physical connection.
+    /// </summary>
+    public async Task RecoverAsync()
     {
         await _gate.WaitAsync();
         try
         {
-            if (_controller()?.State is EHotspotState.On or EHotspotState.Starting)
+            if (!Owned)
             {
-                _resumeAfterCoreStart = true;
-                await StopCoreAsync();
+                return;
+            }
+            if (_controller()?.State is EHotspotState.Off or null)
+            {
+                await SetOwnedAsync(false);
+                return;
+            }
+            if (await StopCoreAsync())
+            {
+                _notify(ResUI.HotspotRecovered);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>Called before the core stops: pause the hotspot so Windows cannot rebind it to the physical link.</summary>
+    public async Task BeforeCoreStopAsync()
+    {
+        if (!await _gate.WaitAsync(_options.GateTimeout))
+        {
+            // A hotspot call is stuck; never block core stop / app exit on it. The guard keeps watching.
+            Logging.SaveLog($"{_tag}: BeforeCoreStop timed out waiting for a hotspot operation");
+            return;
+        }
+        try
+        {
+            if (!Owned)
+            {
+                return;
+            }
+            if (_controller()?.State is EHotspotState.Off or null)
+            {
+                // Ours, but already off (e.g. Windows power saving): release ownership with the VPN session.
+                await SetOwnedAsync(false);
+                return;
+            }
+            if (await StopCoreAsync())
+            {
+                // Only a hotspot started in this session comes back; one left by a crashed session does not.
+                _resumeAfterCoreStart = _startedThisSession;
             }
         }
         finally
@@ -129,7 +194,7 @@ public sealed class HotspotCoordinator
         }
     }
 
-    /// <summary>Stops the hotspot if internet traffic is no longer going through singbox_tun.</summary>
+    /// <summary>Stops an owned hotspot if internet traffic is no longer going through the TUN adapter.</summary>
     public async Task CheckGuardAsync()
     {
         if (!await _gate.WaitAsync(0))
@@ -139,17 +204,23 @@ public sealed class HotspotCoordinator
         try
         {
             var controller = _controller();
-            if (controller?.State != EHotspotState.On)
+            if (controller == null || !Owned)
             {
                 return;
+            }
+            if (controller.State is not (EHotspotState.On or EHotspotState.Starting))
+            {
+                return; // keep ownership: if it is switched back on, it is still guarded
             }
             if (await controller.IsInternetOnTunAsync())
             {
                 return;
             }
             _resumeAfterCoreStart = false;
-            await StopCoreAsync();
-            _notify(ResUI.HotspotStoppedVpnDown);
+            if (await StopCoreAsync())
+            {
+                _notify(ResUI.HotspotStoppedVpnDown);
+            }
         }
         finally
         {
@@ -183,10 +254,13 @@ public sealed class HotspotCoordinator
             return ResUI.HotspotNotOnTun;
         }
 
+        // Take ownership before starting, so a crash mid-start is still recovered and guarded.
+        await SetOwnedAsync(true);
+        _startedThisSession = true;
         var error = await controller.StartAsync(item!.Ssid, item.Password);
-        if (error == null)
+        if (error != null && controller.State == EHotspotState.Off)
         {
-            StartGuardLoop();
+            await SetOwnedAsync(false);
         }
         return error;
     }
@@ -201,59 +275,69 @@ public sealed class HotspotCoordinator
             }
             if (i < attempts - 1)
             {
-                await _delay(TunWaitStep);
+                await _options.Delay(TunWaitStep);
             }
         }
         return false;
     }
 
-    private async Task StopCoreAsync()
+    /// <summary>Stops the hotspot (one retry). Ownership is released only once it is confirmed off.</summary>
+    private async Task<bool> StopCoreAsync()
     {
-        StopGuardLoop();
         var controller = _controller();
-        if (controller != null && controller.State != EHotspotState.Off)
+        if (controller == null)
         {
-            await controller.StopAsync();
+            return true;
         }
+        if (controller.State == EHotspotState.Off)
+        {
+            await SetOwnedAsync(false);
+            return true;
+        }
+
+        var stopped = await controller.StopAsync() || await controller.StopAsync();
+        if (stopped)
+        {
+            await SetOwnedAsync(false);
+        }
+        else
+        {
+            _notify(ResUI.HotspotStopFailed);
+        }
+        return stopped;
     }
 
-    private void StartGuardLoop()
+    private async Task SetOwnedAsync(bool owned)
     {
-        if (!_enableGuardLoop)
+        var config = _config();
+        if (config?.HotspotItem == null || config.HotspotItem.Active == owned)
         {
             return;
         }
-        StopGuardLoop();
-        var cts = new CancellationTokenSource();
-        _guardCts = cts;
-        _ = Task.Run(async () =>
+        config.HotspotItem.Active = owned;
+        try
         {
-            using var timer = new PeriodicTimer(GuardInterval);
+            await _saveConfig(config);
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private async Task RunGuardLoopAsync(TimeSpan interval)
+    {
+        using var timer = new PeriodicTimer(interval);
+        while (await timer.WaitForNextTickAsync())
+        {
             try
             {
-                while (await timer.WaitForNextTickAsync(cts.Token))
-                {
-                    await CheckGuardAsync();
-                    if (_controller()?.State is null or EHotspotState.Off)
-                    {
-                        break;
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
+                await CheckGuardAsync();
             }
             catch (Exception ex)
             {
                 Logging.SaveLog(_tag, ex);
             }
-        });
-    }
-
-    private void StopGuardLoop()
-    {
-        _guardCts?.Cancel();
-        _guardCts?.Dispose();
-        _guardCts = null;
+        }
     }
 }

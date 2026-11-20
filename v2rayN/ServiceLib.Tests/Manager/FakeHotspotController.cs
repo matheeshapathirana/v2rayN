@@ -6,6 +6,11 @@ internal sealed class FakeHotspotController : IHotspotController
     public int ClientCount { get; set; }
     public bool InternetOnTun { get; set; } = true;
     public string? StartResult { get; set; }
+    /// <summary>State left behind when StartAsync reports an error (Windows may still be bringing it up).</summary>
+    public EHotspotState StateAfterFailedStart { get; set; } = EHotspotState.Off;
+    public bool StopSucceeds { get; set; } = true;
+    /// <summary>When set, StartAsync waits for this before completing.</summary>
+    public TaskCompletionSource? StartBlocker { get; set; }
     public int StartCalls { get; private set; }
     public int StopCalls { get; private set; }
     public (string Ssid, string Password)? LastStart { get; private set; }
@@ -19,21 +24,25 @@ internal sealed class FakeHotspotController : IHotspotController
         return Task.FromResult(InternetOnTun && TunChecks > TunReadyAfterChecks);
     }
 
-    public Task<string?> StartAsync(string ssid, string password)
+    public async Task<string?> StartAsync(string ssid, string password)
     {
         StartCalls++;
         LastStart = (ssid, password);
-        if (StartResult == null)
+        if (StartBlocker != null)
         {
-            State = EHotspotState.On;
+            await StartBlocker.Task;
         }
-        return Task.FromResult(StartResult);
+        State = StartResult == null ? EHotspotState.On : StateAfterFailedStart;
+        return StartResult;
     }
 
-    public Task StopAsync()
+    public Task<bool> StopAsync()
     {
         StopCalls++;
-        State = EHotspotState.Off;
-        return Task.CompletedTask;
+        if (StopSucceeds)
+        {
+            State = EHotspotState.Off;
+        }
+        return Task.FromResult(StopSucceeds);
     }
 }
