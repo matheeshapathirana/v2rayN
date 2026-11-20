@@ -98,7 +98,12 @@ jobs:
       shell: bash
       working-directory: ./v2rayN
       run: |
-        dotnet publish ${{ matrix.project }} -c Release -r ${{ matrix.rid }} -p:SelfContained=true ${{ matrix.ext }} -o "$Output"
+        # Stamp the release tag (minus "v") into the app so its self-updater can tell
+        # custom builds apart: 7.25.6-custom.4 < 7.25.6-custom.5. Must match TAG below.
+        APP_VERSION="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)"
+        BUILD_VERSION="${APP_VERSION}-custom.${GITHUB_RUN_NUMBER}"
+        echo "Build version: $BUILD_VERSION"
+        dotnet publish ${{ matrix.project }} -c Release -r ${{ matrix.rid }} -p:SelfContained=true -p:InformationalVersion="$BUILD_VERSION" ${{ matrix.ext }} -o "$Output"
         dotnet publish ./AmazTool/AmazTool.csproj -c Release -r ${{ matrix.rid }} -p:SelfContained=true -p:PublishTrimmed=true ${{ matrix.ext }} -o "$Output"
         find "$Output" -type f -name '*.pdb' -delete
 
