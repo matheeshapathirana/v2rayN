@@ -1911,4 +1911,19 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="HotspotPasswordInvalid" xml:space="preserve">
     <value>Password must be 8–63 characters</value>
   </data>
+  <data name="HotspotNeedTun" xml:space="preserve">
+    <value>Enable Tun and start a server before starting the hotspot</value>
+  </data>
+  <data name="HotspotNotOnTun" xml:space="preserve">
+    <value>Windows is not routing internet through singbox_tun yet; try again in a few seconds</value>
+  </data>
+  <data name="HotspotStoppedTunOff" xml:space="preserve">
+    <value>Hotspot stopped because Tun was turned off</value>
+  </data>
+  <data name="HotspotStoppedVpnDown" xml:space="preserve">
+    <value>Hotspot stopped because the VPN connection went down</value>
+  </data>
+  <data name="HotspotUnavailable" xml:space="preserve">
+    <value>Hotspot is only available in the Windows app</value>
+  </data>
 </root>

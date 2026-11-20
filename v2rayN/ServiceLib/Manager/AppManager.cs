@@ -11,6 +11,7 @@ public sealed class AppManager
     public static AppManager Instance => _instance.Value;
     public Config Config => _config;
     public IWindowDialog WindowDialog { get; set; } = null!;
+    public IHotspotController? HotspotController { get; set; }
 
     public int StatePort
     {

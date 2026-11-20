@@ -5435,5 +5435,50 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("HotspotPasswordInvalid", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Enable Tun and start a server before starting the hotspot
+        /// </summary>
+        public static string HotspotNeedTun {
+            get {
+                return ResourceManager.GetString("HotspotNeedTun", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Windows is not routing internet through singbox_tun yet; try again in a few seconds
+        /// </summary>
+        public static string HotspotNotOnTun {
+            get {
+                return ResourceManager.GetString("HotspotNotOnTun", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot stopped because Tun was turned off
+        /// </summary>
+        public static string HotspotStoppedTunOff {
+            get {
+                return ResourceManager.GetString("HotspotStoppedTunOff", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot stopped because the VPN connection went down
+        /// </summary>
+        public static string HotspotStoppedVpnDown {
+            get {
+                return ResourceManager.GetString("HotspotStoppedVpnDown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot is only available in the Windows app
+        /// </summary>
+        public static string HotspotUnavailable {
+            get {
+                return ResourceManager.GetString("HotspotUnavailable", resourceCulture);
+            }
+        }
     }
 }
