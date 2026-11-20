@@ -3,6 +3,25 @@ namespace ServiceLib.Tests.Manager;
 public class CoreManagerTests
 {
     [Test]
+    [NotInParallel("AppManagerHotspotController")]
+    public async Task CoreStop_WhenHotspotOn_StopsHotspot()
+    {
+        var fake = new FakeHotspotController { State = EHotspotState.On };
+        AppManager.Instance.HotspotController = fake;
+        try
+        {
+            await CoreManager.Instance.CoreStop();
+
+            await fake.StopCalls.Should().BeEqualTo(1);
+            await fake.State.Should().BeEqualTo(EHotspotState.Off);
+        }
+        finally
+        {
+            AppManager.Instance.HotspotController = null;
+        }
+    }
+
+    [Test]
     [Arguments(ECoreType.sing_box)]
     [Arguments(ECoreType.mihomo)]
     [Arguments(ECoreType.Xray)]
