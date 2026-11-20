@@ -9,7 +9,7 @@ public interface IHotspotController
 
     int ClientCount { get; }
 
-    /// <summary>True when the OS internet connection profile is the singbox_tun adapter.</summary>
+    /// <summary>True when a TUN adapter (singbox_tun or xray_tun) has a connection profile with internet access.</summary>
     Task<bool> IsInternetOnTunAsync();
 
     /// <summary>Starts the hotspot. Returns null on success, otherwise an error message.</summary>

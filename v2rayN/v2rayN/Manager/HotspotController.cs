@@ -53,7 +53,7 @@ public sealed class HotspotController : IHotspotController
 
     public Task<bool> IsInternetOnTunAsync()
     {
-        return Task.Run(() => IsTunProfile(NetworkInformation.GetInternetConnectionProfile()));
+        return Task.Run(() => FindTunProfile() != null);
     }
 
     public async Task<string?> StartAsync(string ssid, string password)
@@ -61,10 +61,10 @@ public sealed class HotspotController : IHotspotController
         NetworkOperatorTetheringManager? manager = null;
         try
         {
-            // Re-check here: the profile may have changed since the caller checked it,
-            // and a hotspot created from the physical profile would bypass the VPN.
-            var profile = NetworkInformation.GetInternetConnectionProfile();
-            if (!IsTunProfile(profile))
+            // Share the TUN profile explicitly: a hotspot created from the physical profile would
+            // bypass the VPN. Re-check here, the TUN may have gone since the caller checked it.
+            var profile = FindTunProfile();
+            if (profile == null)
             {
                 return ResUI.HotspotNotOnTun;
             }
@@ -155,23 +155,33 @@ public sealed class HotspotController : IHotspotController
         return _manager;
     }
 
-    private static bool IsTunProfile(ConnectionProfile? profile)
+    /// <summary>
+    /// The TUN adapter's connection profile once it has internet access. Not necessarily the
+    /// OS internet profile: with xray TUN, Windows keeps the physical link as that profile even
+    /// though the default route goes through xray_tun.
+    /// </summary>
+    private static ConnectionProfile? FindTunProfile()
     {
         try
         {
-            var adapterId = profile?.NetworkAdapter?.NetworkAdapterId;
-            if (adapterId is null)
-            {
-                return false;
-            }
-            return NetworkInterface.GetAllNetworkInterfaces()
+            var tunIds = NetworkInterface.GetAllNetworkInterfaces()
                 .Where(n => TunAdapterNames.Contains(n.Name, StringComparer.OrdinalIgnoreCase))
-                .Any(n => Guid.TryParse(n.Id, out var id) && id == adapterId.Value);
+                .Select(n => Guid.TryParse(n.Id, out var id) ? id : Guid.Empty)
+                .Where(id => id != Guid.Empty)
+                .ToHashSet();
+            if (tunIds.Count == 0)
+            {
+                return null;
+            }
+            return NetworkInformation.GetConnectionProfiles().FirstOrDefault(p =>
+                p.NetworkAdapter is { } adapter
+                && tunIds.Contains(adapter.NetworkAdapterId)
+                && p.GetNetworkConnectivityLevel() == NetworkConnectivityLevel.InternetAccess);
         }
         catch (Exception ex)
         {
             Logging.SaveLog(_tag, ex);
-            return false;
+            return null;
         }
     }
 

@@ -5446,7 +5446,7 @@ namespace ServiceLib.Resx {
         }
         
         /// <summary>
-        ///   Windows is not routing internet through singbox_tun yet; try again in a few seconds
+        ///   The TUN adapter has no internet access yet; try again in a few seconds
         /// </summary>
         public static string HotspotNotOnTun {
             get {
