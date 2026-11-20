@@ -32,6 +32,14 @@ public class SelfUpdateSourceTests
     }
 
     [Test]
+    public async Task SelfUpdate_IsOfferedButPatchedXrayIsNot()
+    {
+        var types = CoreInfoManager.Instance.GetCheckUpdateCoreTypes();
+        await types.Should().Contain(ECoreType.v2rayN);
+        await types.Should().NotContain(ECoreType.Xray);
+    }
+
+    [Test]
     public async Task OtherCores_StillUseTheirOwnRepos()
     {
         await CoreInfoManager.Instance.GetCoreInfo(ECoreType.sing_box)!.Url

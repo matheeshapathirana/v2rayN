@@ -24,7 +24,7 @@ public class WebReleaseChannelTests
     {
         await WebReleaseChannel.BuildReleaseIndexUrl("2dust/v2rayN")
             .Should().BeEqualTo("https://api.github.com/repos/2dust/v2rayN/releases?per_page=100");
-        await WebReleaseChannel.DefaultRepository.Should().BeEqualTo("2dust/v2rayN");
+        await WebReleaseChannel.DefaultRepository.Should().BeEqualTo("matheeshapathirana/v2rayN");
 
         var rejected = false;
         try { _ = WebReleaseChannel.BuildReleaseIndexUrl("2dust/v2rayN/../../evil"); }
