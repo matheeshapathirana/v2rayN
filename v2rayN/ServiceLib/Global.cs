@@ -665,7 +665,8 @@ public class Global
         { ECoreType.overtls, "ShadowsocksR-Live/overtls" },
         { ECoreType.shadowquic, "spongebob888/shadowquic" },
         { ECoreType.mieru, "enfein/mieru" },
-        { ECoreType.v2rayN, "2dust/v2rayN" },
+        // Self-update comes from the custom fork's releases (see .github/workflows/build-custom.yml).
+        { ECoreType.v2rayN, "matheeshapathirana/v2rayN" },
     };
 
     public static readonly List<string> OtherGeoUrls =

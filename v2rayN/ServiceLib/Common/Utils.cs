@@ -938,11 +938,18 @@ public class Utils
         return Global.AppName;
     }
 
+    /// <summary>
+    /// App version used for display and self-update comparison. Custom builds set
+    /// InformationalVersion to e.g. "7.25.6-custom.12" (the release tag without "v"), so the
+    /// updater can tell custom builds apart; plain builds fall back to the assembly version.
+    /// </summary>
     public static string GetVersionInfo()
     {
         try
         {
-            return Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString(3) ?? "0.0";
+            var assembly = Assembly.GetExecutingAssembly();
+            var informational = assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            return ResolveAppVersion(informational, assembly?.GetName()?.Version);
         }
         catch (Exception ex)
         {
@@ -950,6 +957,19 @@ public class Utils
             return "0.0";
         }
     }
+
+    public static string ResolveAppVersion(string? informationalVersion, Version? assemblyVersion)
+    {
+        // The SDK appends "+<commit sha>" (build metadata), which is not part of the version.
+        var version = informationalVersion?.Split('+')[0].Trim();
+        if (!version.IsNullOrEmpty() && _appVersionRegex.IsMatch(version))
+        {
+            return version;
+        }
+        return assemblyVersion?.ToString(3) ?? "0.0";
+    }
+
+    private static readonly Regex _appVersionRegex = new(@"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$", RegexOptions.Compiled);
 
     public static string GetRuntimeInfo()
     {
