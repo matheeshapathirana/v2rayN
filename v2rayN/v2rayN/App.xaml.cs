@@ -42,6 +42,10 @@ public partial class App
         }
 
         AppManager.Instance.WindowDialog = new WindowDialog();
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 10240))
+        {
+            AppManager.Instance.HotspotController = new HotspotController();
+        }
 
         AppManager.Instance.InitComponents();
 
