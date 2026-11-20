@@ -1905,4 +1905,58 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="menuAddMasqueServer" xml:space="preserve">
     <value>Add [MASQUE]</value>
   </data>
+  <data name="HotspotSsidInvalid" xml:space="preserve">
+    <value>Network name must be 1–32 bytes</value>
+  </data>
+  <data name="HotspotPasswordInvalid" xml:space="preserve">
+    <value>Password must be 8–63 characters</value>
+  </data>
+  <data name="HotspotNeedTun" xml:space="preserve">
+    <value>Enable Tun and start a server before starting the hotspot</value>
+  </data>
+  <data name="HotspotNotOnTun" xml:space="preserve">
+    <value>Windows is not routing internet through singbox_tun yet; try again in a few seconds</value>
+  </data>
+  <data name="HotspotStoppedTunOff" xml:space="preserve">
+    <value>Hotspot stopped because Tun was turned off</value>
+  </data>
+  <data name="HotspotStoppedVpnDown" xml:space="preserve">
+    <value>Hotspot stopped because the VPN connection went down</value>
+  </data>
+  <data name="HotspotUnavailable" xml:space="preserve">
+    <value>Hotspot is only available in the Windows app</value>
+  </data>
+  <data name="menuHotspot" xml:space="preserve">
+    <value>Hotspot</value>
+  </data>
+  <data name="HotspotSsid" xml:space="preserve">
+    <value>Network name (SSID)</value>
+  </data>
+  <data name="HotspotPassword" xml:space="preserve">
+    <value>Password (at least 8 characters)</value>
+  </data>
+  <data name="HotspotStart" xml:space="preserve">
+    <value>Start hotspot</value>
+  </data>
+  <data name="HotspotStop" xml:space="preserve">
+    <value>Stop hotspot</value>
+  </data>
+  <data name="HotspotStatusOn" xml:space="preserve">
+    <value>Hotspot is on — sharing the VPN</value>
+  </data>
+  <data name="HotspotStatusOff" xml:space="preserve">
+    <value>Hotspot is off</value>
+  </data>
+  <data name="HotspotStatusStarting" xml:space="preserve">
+    <value>Starting…</value>
+  </data>
+  <data name="HotspotClients" xml:space="preserve">
+    <value>Connected devices: {0}</value>
+  </data>
+  <data name="HotspotStopFailed" xml:space="preserve">
+    <value>Could not stop the hotspot; turn it off in Windows Settings (Mobile hotspot)</value>
+  </data>
+  <data name="HotspotRecovered" xml:space="preserve">
+    <value>Stopped a hotspot left running by a previous session</value>
+  </data>
 </root>

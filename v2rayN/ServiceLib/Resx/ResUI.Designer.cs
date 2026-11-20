@@ -5417,5 +5417,167 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("UpgradeAppNotExistTip", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Network name must be 1–32 bytes
+        /// </summary>
+        public static string HotspotSsidInvalid {
+            get {
+                return ResourceManager.GetString("HotspotSsidInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Password must be 8–63 characters
+        /// </summary>
+        public static string HotspotPasswordInvalid {
+            get {
+                return ResourceManager.GetString("HotspotPasswordInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Enable Tun and start a server before starting the hotspot
+        /// </summary>
+        public static string HotspotNeedTun {
+            get {
+                return ResourceManager.GetString("HotspotNeedTun", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Windows is not routing internet through singbox_tun yet; try again in a few seconds
+        /// </summary>
+        public static string HotspotNotOnTun {
+            get {
+                return ResourceManager.GetString("HotspotNotOnTun", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot stopped because Tun was turned off
+        /// </summary>
+        public static string HotspotStoppedTunOff {
+            get {
+                return ResourceManager.GetString("HotspotStoppedTunOff", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot stopped because the VPN connection went down
+        /// </summary>
+        public static string HotspotStoppedVpnDown {
+            get {
+                return ResourceManager.GetString("HotspotStoppedVpnDown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot is only available in the Windows app
+        /// </summary>
+        public static string HotspotUnavailable {
+            get {
+                return ResourceManager.GetString("HotspotUnavailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot
+        /// </summary>
+        public static string menuHotspot {
+            get {
+                return ResourceManager.GetString("menuHotspot", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Network name (SSID)
+        /// </summary>
+        public static string HotspotSsid {
+            get {
+                return ResourceManager.GetString("HotspotSsid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Password (at least 8 characters)
+        /// </summary>
+        public static string HotspotPassword {
+            get {
+                return ResourceManager.GetString("HotspotPassword", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Start hotspot
+        /// </summary>
+        public static string HotspotStart {
+            get {
+                return ResourceManager.GetString("HotspotStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Stop hotspot
+        /// </summary>
+        public static string HotspotStop {
+            get {
+                return ResourceManager.GetString("HotspotStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot is on — sharing the VPN
+        /// </summary>
+        public static string HotspotStatusOn {
+            get {
+                return ResourceManager.GetString("HotspotStatusOn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Hotspot is off
+        /// </summary>
+        public static string HotspotStatusOff {
+            get {
+                return ResourceManager.GetString("HotspotStatusOff", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Starting…
+        /// </summary>
+        public static string HotspotStatusStarting {
+            get {
+                return ResourceManager.GetString("HotspotStatusStarting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Connected devices: {0}
+        /// </summary>
+        public static string HotspotClients {
+            get {
+                return ResourceManager.GetString("HotspotClients", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Could not stop the hotspot; turn it off in Windows Settings (Mobile hotspot)
+        /// </summary>
+        public static string HotspotStopFailed {
+            get {
+                return ResourceManager.GetString("HotspotStopFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Stopped a hotspot left running by a previous session
+        /// </summary>
+        public static string HotspotRecovered {
+            get {
+                return ResourceManager.GetString("HotspotRecovered", resourceCulture);
+            }
+        }
     }
 }

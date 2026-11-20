@@ -42,6 +42,12 @@ public partial class App
         }
 
         AppManager.Instance.WindowDialog = new WindowDialog();
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 10240))
+        {
+            AppManager.Instance.HotspotController = new HotspotController();
+            // Stop a hotspot that a crashed previous session left sharing the physical connection.
+            _ = Task.Run(() => HotspotCoordinator.Instance.RecoverAsync());
+        }
 
         AppManager.Instance.InitComponents();
 

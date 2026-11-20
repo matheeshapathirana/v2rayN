@@ -154,6 +154,19 @@ public class TunModeItem
 }
 
 [Serializable]
+public class HotspotItem
+{
+    public string Ssid { get; set; }
+    public string Password { get; set; }
+
+    /// <summary>
+    /// True while v2rayN owns a running hotspot. Persisted immediately so a hotspot left
+    /// behind by a crash can be stopped on the next launch.
+    /// </summary>
+    public bool Active { get; set; }
+}
+
+[Serializable]
 public class SpeedTestItem
 {
     public int SpeedTestTimeout { get; set; }

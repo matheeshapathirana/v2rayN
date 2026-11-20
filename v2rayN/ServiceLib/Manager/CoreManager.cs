@@ -18,6 +18,8 @@ public class CoreManager
     private Func<bool, string, Task>? _updateFunc;
     private const string _tag = "CoreHandler";
 
+    public bool IsCoreRunning => _processService is { HasExited: false };
+
     public async Task Init(Config config, Func<bool, string, Task> updateFunc)
     {
         _config = config;
@@ -97,6 +99,21 @@ public class CoreManager
 
         AppManager.Instance.RunningCoreType = preContext?.RunCoreType ?? mainContext.RunCoreType;
 
+        // Resume a paused hotspot in the background: it may wait a few seconds for Windows
+        // to make the new singbox_tun the internet profile, which must not delay the reload.
+        var tunActive = IsCoreRunning && (mainContext.IsTunEnabled || preContext?.IsTunEnabled == true);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await HotspotCoordinator.Instance.AfterCoreStartAsync(tunActive);
+            }
+            catch (Exception ex)
+            {
+                Logging.SaveLog(_tag, ex);
+            }
+        });
+
         if (_processService != null)
         {
             await UpdateFunc(true, $"{node.GetSummary()}");
@@ -146,6 +163,16 @@ public class CoreManager
 
     public async Task CoreStop()
     {
+        try
+        {
+            // Pause the hotspot before singbox_tun goes away, so Windows cannot rebind it to the physical link.
+            await HotspotCoordinator.Instance.BeforeCoreStopAsync();
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+
         try
         {
             if (_linuxSudo)
