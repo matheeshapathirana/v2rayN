@@ -5417,5 +5417,23 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("UpgradeAppNotExistTip", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Network name must be 1–32 bytes
+        /// </summary>
+        public static string HotspotSsidInvalid {
+            get {
+                return ResourceManager.GetString("HotspotSsidInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Password must be 8–63 characters
+        /// </summary>
+        public static string HotspotPasswordInvalid {
+            get {
+                return ResourceManager.GetString("HotspotPasswordInvalid", resourceCulture);
+            }
+        }
     }
 }

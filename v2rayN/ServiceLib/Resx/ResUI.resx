@@ -1905,4 +1905,10 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="menuAddMasqueServer" xml:space="preserve">
     <value>Add [MASQUE]</value>
   </data>
+  <data name="HotspotSsidInvalid" xml:space="preserve">
+    <value>Network name must be 1–32 bytes</value>
+  </data>
+  <data name="HotspotPasswordInvalid" xml:space="preserve">
+    <value>Password must be 8–63 characters</value>
+  </data>
 </root>

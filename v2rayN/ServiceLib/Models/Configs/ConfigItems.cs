@@ -154,6 +154,13 @@ public class TunModeItem
 }
 
 [Serializable]
+public class HotspotItem
+{
+    public string Ssid { get; set; }
+    public string Password { get; set; }
+}
+
+[Serializable]
 public class SpeedTestItem
 {
     public int SpeedTestTimeout { get; set; }
