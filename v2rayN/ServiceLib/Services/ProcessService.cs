@@ -5,6 +5,7 @@ public class ProcessService : IDisposable
     private readonly Process _process;
     private readonly Func<bool, string, Task>? _updateFunc;
     private bool _isDisposed;
+    private ProcessLookupLogMerger? _logMerger;
 
     public int Id => _process.Id;
     public IntPtr Handle => _process.Handle;
@@ -118,11 +119,13 @@ public class ProcessService : IDisposable
 
     private void RegisterEventHandlers()
     {
+        _logMerger = new ProcessLookupLogMerger(line => _ = _updateFunc?.Invoke(false, line + Environment.NewLine));
+
         void dataHandler(object sender, DataReceivedEventArgs e)
         {
             if (e.Data.IsNotEmpty())
             {
-                _ = _updateFunc?.Invoke(false, e.Data + Environment.NewLine);
+                _logMerger.Push(e.Data);
             }
         }
 
@@ -174,6 +177,7 @@ public class ProcessService : IDisposable
             _updateFunc?.Invoke(true, ex.Message);
         }
 
+        _logMerger?.Dispose();
         _isDisposed = true;
         GC.SuppressFinalize(this);
     }
